@@ -1,0 +1,7 @@
+Plaintext
+streamlit
+pypdf
+easyocr
+opencv-python-headless
+Pillow
+python-Levenshtein
