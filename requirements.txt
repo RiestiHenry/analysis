@@ -1,5 +1,7 @@
 streamlit
 pypdf
+pdf2image
+pytesseract
 opencv-python-headless
 Pillow
 python-Levenshtein
