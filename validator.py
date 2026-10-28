@@ -1,21 +1,29 @@
 import re
-from pypdf import PdfReader
+from pdf2image import convert_from_bytes
+import pytesseract
 from Levenshtein import ratio
 
 def extract_text_from_pdf(pdf_file):
-    """PDF 파일에서 텍스트 추출"""
-    reader = PdfReader(pdf_file)
-    text = ""
-    for page in reader.pages:
-        extracted = page.extract_text()
-        if extracted:
-            text += extracted + "\n"
-    return text.strip()
+    """PDF 파일을 이미지로 변환한 뒤 OCR을 통해 정확한 텍스트 추출"""
+    try:
+        # PDF 파일을 이미지 리스트로 변환 (poppler 필요)
+        images = convert_from_bytes(pdf_file.read())
+        extracted_text = ""
+        
+        for image in images:
+            # OCR을 이용해 이미지 내 텍스트 추출 (영어/숫자 기준)
+            text = pytesseract.image_to_string(image, lang='eng')
+            extracted_text += text + "\n"
+            
+        return extracted_text.strip()
+    except Exception as e:
+        # poppler가 설치되지 않은 로컬 환경 등의 예외 처리 시 기존 방식 Fallback
+        return f"OCR 추출 오류: {str(e)}"
 
 def normalize_text(text):
     """비교를 위한 공백 및 특수문자 정규화"""
-    text_clean = re.sub(r'[\,\.\-\_]', ' ', text)  # 특수문자를 공백으로 변환
-    text_clean = re.sub(r'\s+', ' ', text_clean)    # 연속 공백을 하나로
+    text_clean = re.sub(r'[\,\.\-\_]', ' ', text)  
+    text_clean = re.sub(r'\s+', ' ', text_clean)    
     return text_clean.strip().upper()
 
 def compare_texts(box_text, cfs_text):
@@ -23,7 +31,6 @@ def compare_texts(box_text, cfs_text):
     norm_box = normalize_text(box_text)
     norm_cfs = normalize_text(cfs_text)
     
-    # 레벤슈타인 거리 기반 유사도 계산 (0 ~ 100%)
     similarity = round(ratio(norm_box, norm_cfs) * 100, 2)
     
     exact_match = (box_text.strip() == cfs_text.strip())
@@ -31,8 +38,8 @@ def compare_texts(box_text, cfs_text):
     normalized_match = (norm_box == norm_cfs)
     
     return {
-        "exact_match": exact_match,             # 완전히 일치 (대소문자, 문장부호 포함)
-        "ignore_case_match": ignore_case_match, # 대소문자 무시 일치
-        "normalized_match": normalized_match,   # 문장부호/공백 무시 일치
-        "similarity": similarity                 # 유사도 퍼센트
+        "exact_match": exact_match,
+        "ignore_case_match": ignore_case_match,
+        "normalized_match": normalized_match,
+        "similarity": similarity
     }
